@@ -2,7 +2,7 @@ import os, sys, optparse, traceback
 import shutil
 
 from jinja2 import Environment, FileSystemLoader
-
+from . import __path__
 
 idlparser = None
 #import idl_parser
@@ -27,7 +27,7 @@ def update_include_dirs(dirs):
     return ret
 
 
-def parse_global_module(gm, language, idl_identifier, description='', version='1.0.0', vendor='VENDOR_NAME', author='AUTHOR_NAME', author_short='AUTHOR', base_dir=None):
+def parse_global_module(gm, language, idl_identifier, description='', version='1.0.0', vendor='VENDOR_NAME', author='AUTHOR_NAME', author_short='AUTHOR', base_dir=None, package_dir='.'):
     cwd = os.getcwd()
     if base_dir is None:
         base_dir = cwd
@@ -38,8 +38,9 @@ def parse_global_module(gm, language, idl_identifier, description='', version='1
     idls = [ {'filename' : idl_identifier + '.idl' } ]
     includes = idlparser.includes(idl_filepath)
     include_idls = [ {'filename' : os.path.basename(f)} for f in includes ]
-
-    template_backend_dir = os.path.join('template', language)
+    
+    print __path__
+    template_backend_dir = os.path.join(__path__[0], 'template', language)
     if not os.path.isdir(template_backend_dir):
         print 'Backend (%s) is not available'
         raise InvalidBackendException()
