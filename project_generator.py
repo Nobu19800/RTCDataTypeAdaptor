@@ -39,11 +39,11 @@ def parse_global_module(gm, language, idl_identifier, description='', version='1
     includes = idlparser.includes(idl_filepath)
     include_idls = [ {'filename' : os.path.basename(f)} for f in includes ]
 
-    backend_dir = os.path.join('template', language)
-    if not os.path.isdir(backend_dir):
+    template_backend_dir = os.path.join('template', language)
+    if not os.path.isdir(template_backend_dir):
         print 'Backend (%s) is not available'
         raise InvalidBackendException()
-    os.chdir(backend_dir)
+    os.chdir(template_backend_dir)
 
     for root, dirs, files in os.walk('.'):
         env = Environment(loader=FileSystemLoader(root, encoding='utf8'))
@@ -51,7 +51,7 @@ def parse_global_module(gm, language, idl_identifier, description='', version='1
             if not f.endswith('.tpl'):
                 continue
 
-            project_dir = os.path.join(base_dir, idl_identifier, root)
+            project_dir = os.path.join(base_dir, language, idl_identifier, root)
             if not os.path.isdir(project_dir):
                 os.mkdir(project_dir)
             filename = f[:-4]
@@ -204,13 +204,17 @@ def parse_module(m, filename):
     return datatypes
 
 
-def generate_directory(idl_identifier, idlpath):
+def generate_directory(idl_identifier, idlpath, backend):
     project_name = idl_identifier
     project_name_lower = project_name.lower()
 
     # make project dir
     base_dir = '.'
-    project_dir = os.path.join(base_dir, project_name)
+    backend_dir = os.path.join(base_dir, backend)
+    if not os.path.isdir( backend_dir ):
+        os.mkdir(backend_dir)
+        
+    project_dir = os.path.join(base_dir, backend, project_name)
     if not os.path.isdir(project_dir):
         os.mkdir(project_dir)
 
@@ -232,7 +236,7 @@ def main(argv):
         idlparser = IDLParser(idl_dirs=include_dirs)
         with open(arg, 'r') as f:
             project_name = arg[:-4]
-            generate_directory(project_name, arg)
+            generate_directory(project_name, arg, language)
 
             global_module = idlparser.load(f.read(), filepath=arg)
             parse_global_module(global_module, language, project_name)
