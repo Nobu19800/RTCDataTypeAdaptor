@@ -14,10 +14,11 @@ include_dirs = []
 def parse_args(argv):
     optparser = optparse.OptionParser()
     optparser.add_option("-I", "--include", help="Include Directory", action="append", dest="include_dirs", default=[])
+    optparser.add_option("-b", "--backend", help="Backend Language (default=c)", action="store", dest="backend", default='C')
     options, args = optparser.parse_args(argv)
-
+    backend = options.backend
     include_dirs = options.include_dirs
-    return args, include_dirs
+    return args, include_dirs, backend
 
 def update_include_dirs(dirs):
     ret = []
@@ -38,7 +39,12 @@ def parse_global_module(gm, language, idl_identifier, description='', version='1
     includes = idlparser.includes(idl_filepath)
     include_idls = [ {'filename' : os.path.basename(f)} for f in includes ]
 
-    os.chdir(os.path.join('template', language))
+    backend_dir = os.path.join('template', language)
+    if not os.path.isdir(backend_dir):
+        print 'Backend (%s) is not available'
+        raise InvalidBackendException()
+    os.chdir(backend_dir)
+
     for root, dirs, files in os.walk('.'):
         env = Environment(loader=FileSystemLoader(root, encoding='utf8'))
         for f in files:
@@ -219,9 +225,8 @@ def generate_directory(idl_identifier, idlpath):
 
     
 def main(argv):
-    args, include_dirs = parse_args(argv)
+    args, include_dirs, language = parse_args(argv)
     include_dirs = update_include_dirs(include_dirs)
-    language = 'c'
     for arg in args[1:]:
         global idlparser
         idlparser = IDLParser(idl_dirs=include_dirs)
