@@ -1,4 +1,4 @@
-set(idls {% for idl in idls %} ${CMAKE_CURRENT_SOURCE_DIR}/{{ idl.filename }} {% endfor %} {% for idl in include_idls %} ${CMAKE_CURRENT_SOURCE_DIR}/{{ idl.filename }} {% endfor %}))
+set(idls {% for idl in idls %} ${CMAKE_CURRENT_SOURCE_DIR}/{{ idl.filename }} {% endfor %})
 
 install(FILES ${idls} DESTINATION ${INC_INSTALL_DIR}/idl
     COMPONENT idl)

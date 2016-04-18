@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #ifdef WIN32
-#ifdef RTMAdapter_EXPORTS
+#ifdef {{ idls[0].filename[:-4] }}_EXPORTS
 #define ADAPTER_API __declspec(dllexport)
 #else
 #define ADAPTER_API __declspec(dllimport)

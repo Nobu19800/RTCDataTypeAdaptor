@@ -26,7 +26,7 @@ def update_include_dirs(dirs):
     return ret
 
 
-def parse_global_module(gm, idl_identifier, description='', version='1.0.0', vendor='VENDOR_NAME', author='AUTHOR_NAME', author_short='AUTHOR', base_dir=None):
+def parse_global_module(gm, language, idl_identifier, description='', version='1.0.0', vendor='VENDOR_NAME', author='AUTHOR_NAME', author_short='AUTHOR', base_dir=None):
     cwd = os.getcwd()
     if base_dir is None:
         base_dir = cwd
@@ -38,7 +38,7 @@ def parse_global_module(gm, idl_identifier, description='', version='1.0.0', ven
     includes = idlparser.includes(idl_filepath)
     include_idls = [ {'filename' : os.path.basename(f)} for f in includes ]
 
-    os.chdir(os.path.join('template'))
+    os.chdir(os.path.join('template', language))
     for root, dirs, files in os.walk('.'):
         env = Environment(loader=FileSystemLoader(root, encoding='utf8'))
         for f in files:
@@ -75,13 +75,13 @@ def parse_global_module(gm, idl_identifier, description='', version='1.0.0', ven
                         output_txt = file_tpl.render({'project': project,
                                                       'idls' : idls,
                                                       'datatype' : d })
-                        outputfilename = filename.replace('DATATYPE', d['name'])
+                        outputfilename = filename.replace('DATATYPE', d['full_path'].replace('::', '_'))
                         open(os.path.join(project_dir, outputfilename), 'w').write(output_txt)
                     
     os.chdir(cwd)
 
 type_dict = {
-    'boolean' : 'int32_t', 
+    'boolean' : 'uint8_t', 
     'octet': 'uint8_t',
     'char' : 'int8_t',
     'wchar' : 'int16_t',
@@ -109,7 +109,8 @@ def parse_struct_member(member, context):
             ret = ret + parse_member(m, context=context)
         return ret
             
-def parse_member(m, context = '', verbose=False):
+def parse_member(m, context='', verbose=False):
+
     global idlparser
     if idlparser.is_primitive(m.type.name, except_string=True):
         t = primitive_to_c(m.type.name)
@@ -117,34 +118,43 @@ def parse_member(m, context = '', verbose=False):
                 'name' : context + '.' +  m.name if len(context) > 0 else m.name, }
         return [ret]
     elif m.type.name == 'string':
-        return [{ 'type' : 'sequence<char>',
+        return [{ 'type' : 'string',
                   'name' : m.name,
                   'inner_type' : 'char' }]
     elif m.type.name == 'wstring':
-        return [{ 'type' : 'sequence<uint16_t>',
+        return [{ 'type' : 'wstring',
                   'name' : m.name,
                   'inner_type' : 'uint16_t' }]
     elif m.type.is_struct:
-        return parse_struct_member(m.type, m.name)
+        if len(context) > 0:
+            name = context + '.' + m.name
+        else:
+            name = m.name
+        return parse_struct_member(m.type, context=name)
     elif m.type.is_sequence:
+        if len(context) > 0:
+            name = context + '.' + m.name
+        else:
+            name = m.name
+        
         if idlparser.is_primitive(m.type.inner_type.name, except_string=True):
             typename = 'sequence<%s>' % (primitive_to_c(m.type.inner_type.name))
             return [{ 'type' : typename,
-                      'name' : m.name,
+                      'name' : name,
                       'primitive_sequence' : 'True',
                       'inner_type' : primitive_to_c(m.type.inner_type.name)} ]
         elif m.type.inner_type.name == 'string':
-            sys.stdout.write('Error : parsing type %s\n' % m.type)
-            return [{ 'type' : 'sequence<sequence<char> >',
+            #sys.stdout.write('Error : parsing type %s\n' % m.type)
+            return [{ 'type' : 'sequence<string>',
                       'primitive_sequence' : 'False',
-                      'name' : m.name,
-                      'inner_type' : 'sequence<char>'}]
+                      'name' : name,
+                      'inner_type' : 'string'}]
         elif m.type.inner_type.name == 'wstring':
             sys.stdout.write('Error : parsing type %s\n' % m.type)
-            return [{ 'type' : 'sequence<sequence<uint16_t> >',
+            return [{ 'type' : 'sequence<wstring>',
                       'primitive_sequence' : 'False',
-                      'name' : m.name,
-                      'inner_type' : 'sequence<uint16_t>' }]
+                      'name' : name,
+                      'inner_type' : 'wstring' }]
         else:
             sys.stdout.write('Error : parsing type %s\n' % m.type)
             return [{ 'type' : 'error',
@@ -166,7 +176,7 @@ def parse_struct(s, filename):
     if s.name == 'TimeLong':
         print args
     return { 'name' : s.name,
-             'full_path' : s.full_path.replace('::', '_'),
+             'full_path' : s.full_path,
              'arguments' : args,
     }
     
@@ -195,7 +205,8 @@ def generate_directory(idl_identifier, idlpath):
     # make project dir
     base_dir = '.'
     project_dir = os.path.join(base_dir, project_name)
-    os.mkdir(project_dir)
+    if not os.path.isdir(project_dir):
+        os.mkdir(project_dir)
 
     idl_dir = os.path.join(project_dir, 'idl')
     if not os.path.isdir(idl_dir):
@@ -204,13 +215,13 @@ def generate_directory(idl_identifier, idlpath):
 
     includes = idlparser.includes(idlpath)
     for i in includes:
-        shutil.copy(idlpath, os.path.join(project_dir, 'idl', i))        
+        shutil.copy(i, os.path.join(project_dir, 'idl', os.path.basename(i)))        
 
     
 def main(argv):
     args, include_dirs = parse_args(argv)
     include_dirs = update_include_dirs(include_dirs)
-
+    language = 'c'
     for arg in args[1:]:
         global idlparser
         idlparser = IDLParser(idl_dirs=include_dirs)
@@ -219,7 +230,7 @@ def main(argv):
             generate_directory(project_name, arg)
 
             global_module = idlparser.load(f.read(), filepath=arg)
-            parse_global_module(global_module, project_name)
+            parse_global_module(global_module, language, project_name)
 
 
 if __name__ == '__main__':

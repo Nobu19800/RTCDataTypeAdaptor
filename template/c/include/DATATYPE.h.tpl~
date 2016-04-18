@@ -1,3 +1,4 @@
+
 {% macro members(a, loop, direction='in') -%}
 
    {%- if a.type.find('sequence') >= 0 -%}
