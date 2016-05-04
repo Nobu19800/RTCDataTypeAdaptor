@@ -1,0 +1,1 @@
+python RTCDataTypeAdaptor/bin/generate_adaptor.py test/BasicDataType.idl -bcs -v -o test_out_cs

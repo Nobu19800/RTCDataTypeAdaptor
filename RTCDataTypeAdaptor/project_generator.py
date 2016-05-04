@@ -14,11 +14,15 @@ include_dirs = []
 def parse_args(argv):
     optparser = optparse.OptionParser()
     optparser.add_option("-I", "--include", help="Include Directory", action="append", dest="include_dirs", default=[])
-    optparser.add_option("-b", "--backend", help="Backend Language (default=c)", action="store", dest="backend", default='C')
+    optparser.add_option("-v", "--verbose", help="Verbose (default=false)", action="store_true", dest="verbose", default=False)
+    optparser.add_option("-b", "--backend", help="Backend Language (default=c)", action="store", dest="backend", default='c')
+    optparser.add_option("-o", "--outdir", help="Output Dir (default=out)", action="store", dest="outdir", default='out')
     options, args = optparser.parse_args(argv)
     backend = options.backend
+    verbose = options.verbose
+    outdir = options.outdir
     include_dirs = options.include_dirs
-    return args, include_dirs, backend
+    return args, include_dirs, backend, verbose, outdir
 
 def update_include_dirs(dirs):
     ret = []
@@ -27,37 +31,45 @@ def update_include_dirs(dirs):
     return ret
 
 
-def parse_global_module(gm, language, idl_identifier, description='', version='1.0.0', vendor='VENDOR_NAME', author='AUTHOR_NAME', author_short='AUTHOR', base_dir=None, package_dir='.'):
+def parse_global_module(gm, language, idl_identifier, idl_path, description='', version='1.0.0', vendor='VENDOR_NAME', author='AUTHOR_NAME', author_short='AUTHOR', base_dir=None, package_dir='.', verbose=False, outdir=None):
+    if verbose: print('parse_global_module(%s, %s,  %s, %s, %s, %s, %s, %s, %s, %s, %s)' % (gm, language, idl_identifier, idl_path, description, version, vendor, author, author_short, base_dir, package_dir))
     cwd = os.getcwd()
     if base_dir is None:
         base_dir = cwd
 
-    idl_filepath = os.path.join(base_dir, idl_identifier + '.idl')
+    idl_filepath = os.path.join(base_dir, idl_path)
+    if verbose: print('idl_filepath = %s' % idl_filepath)
     datatypes = parse_module(gm, idl_filepath)
 
     idls = [ {'filename' : idl_identifier + '.idl' } ]
     includes = idlparser.includes(idl_filepath)
     include_idls = [ {'filename' : os.path.basename(f)} for f in includes ]
     
-    print __path__
     template_backend_dir = os.path.join(__path__[0], 'template', language)
+    if verbose: print('- template_backend_dir = %s' % template_backend_dir)
     if not os.path.isdir(template_backend_dir):
-        print 'Backend (%s) is not available'
+        if verbose: print 'Backend (%s) is not available' % language
         raise InvalidBackendException()
     os.chdir(template_backend_dir)
 
+    if outdir == None:
+        backend_dir = os.path.join(base_dir, language)
+    else:
+        backend_dir = os.path.join(base_dir, outdir)
+    
     for root, dirs, files in os.walk('.'):
         env = Environment(loader=FileSystemLoader(root, encoding='utf8'))
         for f in files:
             if not f.endswith('.tpl'):
                 continue
 
-            project_dir = os.path.join(base_dir, language, idl_identifier, root)
+            project_dir = os.path.join(backend_dir, idl_identifier, root)
             if not os.path.isdir(project_dir):
                 os.mkdir(project_dir)
             filename = f[:-4]
 
             file_tpl = env.get_template(filename + '.tpl')
+            if verbose: print('- file_tpl = %s' % file_tpl)
 
             project = { 'name': idl_identifier,
                         'version': version,
@@ -82,7 +94,9 @@ def parse_global_module(gm, language, idl_identifier, description='', version='1
                         output_txt = file_tpl.render({'project': project,
                                                       'idls' : idls,
                                                       'datatype' : d })
+                        if verbose: print('- output_txt = %s' % output_txt)
                         outputfilename = filename.replace('DATATYPE', d['full_path'].replace('::', '_'))
+                        if verbose: print('- outputfilename = %s' % outputfilename)
                         open(os.path.join(project_dir, outputfilename), 'w').write(output_txt)
                     
     os.chdir(cwd)
@@ -205,24 +219,34 @@ def parse_module(m, filename):
     return datatypes
 
 
-def generate_directory(idl_identifier, idlpath, backend):
+def generate_directory(idl_identifier, idlpath, backend, verbose=False, outdir=None):
+    if verbose: print('generate_direcotry(%s, %s, %s)' % (idl_identifier, idlpath, backend))
     project_name = idl_identifier
     project_name_lower = project_name.lower()
 
     # make project dir
     base_dir = '.'
-    backend_dir = os.path.join(base_dir, backend)
+    if outdir == None:
+        backend_dir = os.path.join(base_dir, backend)
+    else:
+        backend_dir = os.path.join(base_dir, outdir)
     if not os.path.isdir( backend_dir ):
+        print('- creating %s' % (backend_dir))
         os.mkdir(backend_dir)
         
-    project_dir = os.path.join(base_dir, backend, project_name)
+    project_dir = os.path.join(backend_dir, project_name)
     if not os.path.isdir(project_dir):
+        print('- creating %s' % (project_dir))
         os.mkdir(project_dir)
 
     idl_dir = os.path.join(project_dir, 'idl')
     if not os.path.isdir(idl_dir):
+        print('- creating %s' % (idl_dir))
         os.mkdir(idl_dir)
-    shutil.copy(idlpath, os.path.join(project_dir, 'idl', idlpath))
+
+    dst_ = os.path.join(project_dir, 'idl', os.path.basename(idlpath))
+    print('- copying %s to %s' % (idlpath, dst_))
+    shutil.copy(idlpath, dst_)
 
     includes = idlparser.includes(idlpath)
     for i in includes:
@@ -230,17 +254,19 @@ def generate_directory(idl_identifier, idlpath, backend):
 
     
 def main(argv):
-    args, include_dirs, language = parse_args(argv)
+    args, include_dirs, language, verbose, outdir = parse_args(argv)
     include_dirs = update_include_dirs(include_dirs)
+    if verbose:
+        print(' Include Dir = %s' % (include_dirs))
     for arg in args[1:]:
         global idlparser
         idlparser = IDLParser(idl_dirs=include_dirs)
         with open(arg, 'r') as f:
-            project_name = arg[:-4]
-            generate_directory(project_name, arg, language)
+            project_name = os.path.basename(arg)[:-4]
+            generate_directory(project_name, arg, language, verbose=verbose, outdir=outdir)
 
             global_module = idlparser.load(f.read(), filepath=arg)
-            parse_global_module(global_module, language, project_name)
+            parse_global_module(global_module, language, project_name, arg, verbose=verbose, outdir=outdir)
 
 
 if __name__ == '__main__':
