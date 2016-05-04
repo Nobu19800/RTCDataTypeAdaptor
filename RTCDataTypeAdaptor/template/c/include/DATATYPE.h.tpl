@@ -49,6 +49,8 @@
 extern "C" {
 #endif
 
+{%- for datatype in datatypes %}
+
   ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_registerDataType(void* portBuffer);
 
   ADAPTER_API DataType_t {{ datatype.full_path.replace('::', '_') }}_create();
@@ -65,6 +67,7 @@ extern "C" {
 
   ADAPTER_API Port_t OutPort_{{ datatype.full_path.replace('::', '_') }}_create(char* name, DataType_t d);
 
+{%- endfor %}
 
 #ifdef __cplusplus
 }

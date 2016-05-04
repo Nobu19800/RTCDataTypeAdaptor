@@ -1,4 +1,4 @@
-set(headers {% for d in datatypes %} {{ d.full_path.replace('::','_') }}.h {% endfor %})
+set(headers {{ filename }}.h )
 
 
 macro(MAP_ADD_STR _list _str _output)

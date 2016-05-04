@@ -1,4 +1,4 @@
-set(_srcs {% for d in datatypes %} {{ d.full_path.replace('::','_') }}.cpp {% endfor %})
+set(_srcs {{ filename }}.cpp )
 
 if (DEFINED OPENRTM_INCLUDE_DIRS)
   string(REGEX REPLACE "-I" ";"

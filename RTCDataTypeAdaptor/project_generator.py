@@ -82,20 +82,26 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
             if filename.find('DATATYPE') < 0:
                 #if root.find('include') > 0:
                     #print root, datatypes
-                output_txt = file_tpl.render({'project': project,
+                output_txt = file_tpl.render({'filename' : idl_identifier, 
+                                              'project': project,
                                               'idls' : idls,
                                               'include_idls' : include_idls,
                                               'datatypes' : datatypes })
 
                 open(os.path.join(project_dir, filename), 'w').write(output_txt)
             else:
-                for d in datatypes:
-                    if d:
-                        output_txt = file_tpl.render({'project': project,
+                #for d in datatypes:
+                if True:
+                    #if d:
+                    if True:
+                        #outputfilename = filename.replace('DATATYPE', d['full_path'].replace('::', '_'))
+                        outputfilename = filename.replace('DATATYPE', idl_identifier)
+                        output_txt = file_tpl.render({'filename': idl_identifier,
+                                                      'project': project,
                                                       'idls' : idls,
-                                                      'datatype' : d })
+                                                      'datatypes' : datatypes })
                         if verbose: print('- output_txt = %s' % output_txt)
-                        outputfilename = filename.replace('DATATYPE', d['full_path'].replace('::', '_'))
+
                         if verbose: print('- outputfilename = %s' % outputfilename)
                         open(os.path.join(project_dir, outputfilename), 'w').write(output_txt)
                     
