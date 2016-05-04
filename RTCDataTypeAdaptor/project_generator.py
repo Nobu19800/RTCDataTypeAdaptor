@@ -40,6 +40,8 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
     idl_filepath = os.path.join(base_dir, idl_path)
     if verbose: print('idl_filepath = %s' % idl_filepath)
     datatypes = parse_module(gm, idl_filepath)
+    
+    module_tree = parse_module_tree({}, gm, idl_filepath)
 
     idls = [ {'filename' : idl_identifier + '.idl' } ]
     includes = idlparser.includes(idl_filepath)
@@ -58,7 +60,7 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
         backend_dir = os.path.join(base_dir, outdir)
     
     for root, dirs, files in os.walk('.'):
-        env = Environment(loader=FileSystemLoader(root, encoding='utf8'))
+        env = Environment(loader=FileSystemLoader(root, encoding='utf8'), extensions=['jinja2.ext.do'])
         for f in files:
             if not f.endswith('.tpl'):
                 continue
@@ -86,7 +88,9 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
                                               'project': project,
                                               'idls' : idls,
                                               'include_idls' : include_idls,
-                                              'datatypes' : datatypes })
+                                              'datatypes' : datatypes,
+                                              'module_tree' : module_tree,
+                                              })
 
                 open(os.path.join(project_dir, filename), 'w').write(output_txt)
             else:
@@ -99,7 +103,9 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
                         output_txt = file_tpl.render({'filename': idl_identifier,
                                                       'project': project,
                                                       'idls' : idls,
-                                                      'datatypes' : datatypes })
+                                                      'datatypes' : datatypes,
+                                                      'module_tree' : module_tree,
+                                                      })
                         if verbose: print('- output_txt = %s' % output_txt)
 
                         if verbose: print('- outputfilename = %s' % outputfilename)
@@ -205,6 +211,7 @@ def parse_struct(s, filename):
     return { 'name' : s.name,
              'full_path' : s.full_path,
              'arguments' : args,
+             'members' : s.members,
     }
     
 
@@ -223,6 +230,29 @@ def parse_module(m, filename):
             return parse_struct(s, filename=filename)
         datatypes = datatypes + m_.for_each_struct(parse_struct_local, filter=filter_func)
     return datatypes
+
+
+def parse_module_tree(tree, m, filename):
+
+    def filter_func(s):
+        if s.filepath is None:
+            return False
+        fn = os.path.basename(filename)
+        return s.filepath.find(fn) >= 0
+
+    def parse_struct_local(s):
+        return parse_struct(s, filename=filename)
+
+    tree['module'] = m
+    tree['datatypes'] = m.for_each_struct(parse_struct_local, filter=filter_func)
+    tree['children'] = []
+    
+    for m_ in m.modules:
+        t = parse_module_tree({}, m_, filename)
+        tree['children'].append(t)
+
+    return tree
+
 
 
 def generate_directory(idl_identifier, idlpath, backend, verbose=False, outdir=None):
