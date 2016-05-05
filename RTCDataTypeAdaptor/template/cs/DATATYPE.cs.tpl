@@ -1,3 +1,4 @@
+{# Type Conversion Test #}
 {%- macro typecomp(t) -%}
   {%- if t == 'char' -%} SByte
   {%- elif t == 'boolean' -%} bool
@@ -54,7 +55,7 @@
 {% macro members(a, loop, direction='in') -%}
   {%- if a.type.find('sequence') >= 0 -%}
     {%- if a.primitive_sequence == 'True' -%}
-      {%- if loop.index0 != 0 -%}, {% endif -%}	
+      {%- if loop.index0 != 0 -%}, {% endif -%}
       {{ a.inner_type }}* {{ a.name.replace('.','_') }}, UInt32{%- if direction == 'out' -%}*{%- endif %} {{ a.name.replace('.','_') }}_size
     {%- else -%}
      
@@ -152,25 +153,13 @@
 
     public void down()
     {
-   /*
-        UInt32 length;
-       TimedDoubleSeq_data_length(_d, out length);
-            if (data == null)
-            {
-                data = new double[length];
-            } else if (data.Length < length)
-            {
-                data = new double[length];
-            }
+      {{ dn }}_get(_d, {{ tile_calling_arguments(d, direction='out') }});
+    }
 
-            TimedDoubleSeq_get(_d, out sec, out usec, out data, ref length);
-  */
-     }
+    private DataType_t _d;
 
-     private DataType_t _d;
-
-     public Port_t createOutPort(string name)
-     {
+    public Port_t createOutPort(string name)
+    {
         register();
         _d = {{ dn }}_create();
         return OutPort_{{ dn }}_create(name, _d);
@@ -215,7 +204,7 @@ namespace {{ m.name }} {
   {%- endfor %}
 
 }
-    
+ 
 
 {%- endmacro -%}
 
@@ -243,6 +232,5 @@ using System.Runtime.InteropServices;
 {%- for c in module_tree.children -%}
   {{ parse_module(c) }}
 {%- endfor -%}
-
 
  
