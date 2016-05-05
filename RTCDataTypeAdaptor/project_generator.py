@@ -175,7 +175,9 @@ def parse_member(m, context='', verbose=False):
             return [{ 'type' : typename,
                       'name' : name,
                       'primitive_sequence' : 'True',
-                      'inner_type' : primitive_to_c(m.type.inner_type.name)} ]
+                      'inner_type' : primitive_to_c(m.type.inner_type.name),
+                      'inner_truetype' : m.type.inner_type.name,},
+                    ]
         elif m.type.inner_type.name == 'string':
             #sys.stdout.write('Error : parsing type %s\n' % m.type)
             return [{ 'type' : 'sequence<string>',

@@ -56,16 +56,18 @@
   {%- if a.type.find('sequence') >= 0 -%}
     {%- if a.primitive_sequence == 'True' -%}
       {%- if loop.index0 != 0 -%}, {% endif -%}
-      {{ a.inner_type }}* {{ a.name.replace('.','_') }}, UInt32{%- if direction == 'out' -%}*{%- endif %} {{ a.name.replace('.','_') }}_size
+        {%- if direction == 'out' -%}
+      out {% else -%} ref {% endif -%} {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.','_') }}, {%- if direction == 'out' %} out {% endif %} UInt32 {{ a.name.replace('.','_') }}_size
     {%- else -%}
      
     {%- endif -%}
   {%- elif a.type == 'string' -%}
       {%- if loop.index0 != 0 -%}, {% endif -%}	
-    char* {{ a.name.replace('.','_') }}
+  
+    {%- if direction == 'out' -%}out {% endif %} string {{ a.name.replace('.','_') }}
   {%- elif a.type == 'wstring' -%}
       {%- if loop.index0 != 0 -%}, {% endif -%}	
-    UInt16* {{ a.name.replace('.','_') }}
+    {%- if direction == 'out' -%}out {% endif %} string {{ a.name.replace('.','_') }}
   {%- else -%}
     {%- if loop.index0 != 0 -%}, {% endif -%}	
     {%- if direction == 'out' -%} out {% else %} {% endif -%}
@@ -78,15 +80,46 @@
 {%- endmacro -%}
 
 {%- macro calling_members(d, a, loop, direction='in') -%}
+
   {%- set found=[] -%}
   {%- for m in d.members -%} {%- if m.name == a.name -%}
     {%- do found.append(1) -%}
-    {%- if m.type.name == 'wchar' -%} (Int16)(UInt16){{ a.name }} 
-    {%- elif m.type.name == 'boolean' -%} {{ a.name }} ? (Byte)1 : (Byte)0 
-    {%- else -%}{{ a.name }}{%- endif %}
+    {%- if m.type.name == 'wchar' -%}
+      {%- if direction=='out' -%} 
+ out {{ a.name }}_
+      {%- else -%}
+ (Int16)(UInt16){{ a.name }}
+      {%- endif -%}
+    {%- elif m.type.name == 'boolean' -%}
+      {%- if direction=='out' -%} 
+ out {{ a.name }}_
+      {%- else -%}
+ {{ a.name }} ? (Byte)1 : (Byte)0       
+      {%- endif -%}
+    {%- elif m.type.name.find('sequence') >= 0 -%}
+      {%- if direction=='in' -%}
+ref {{ a.name }}_, (UInt32){{ a.name }}.Count
+      {%- else -%}
+out {{ a.name }}_, out len_{{ a.name.replace('.','_') }}
+      {%- endif -%}
+    {%- else -%}
+      {%- if direction=='out' -%} 
+ out {{ a.name }}
+      {%- else -%}
+ {{ a.name }}
+      {%- endif -%}
+    {%- endif %}
   {%- endif -%}{%- endfor -%}
   {%- if found|length == 0 -%}
+    {%- if direction=='out' -%} 
+out {{ a.name }}
+    {%- else -%}
+      {%- if a.type.find('sequence') >= 0 -%}
+ref {{ a.name }}_ 
+      {%- else -%}
 {{ a.name }}
+      {%- endif -%}
+    {%- endif -%}
   {%- endif -%}
 {%- if loop.index != loop.length -%}, {% endif -%}
 
@@ -95,6 +128,58 @@
 {%- macro tile_calling_arguments(d, direction='in') -%}
   {%- for a in d.arguments -%}{{ calling_members(d, a, loop, direction) }}{%- endfor -%}
 {%- endmacro -%}
+
+{#- FOR SEQUENCE -#}
+
+{%- macro sequence_setget(datatype, context, a) %}
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_getLength(DataType_t d, out UInt32 size);
+
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_setLength(DataType_t d, UInt32 size);
+
+  {%- if not a.primitive_sequence == 'True' -%}
+    {%- if a.inner_type == 'string' %}
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_setWithIndex(DataType_t d, UInt32 index, string data);
+
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_getWithIndex(DataType_t d, UInt32 index, out string data);
+
+    {%- elif a.inner_type == 'wstring' %}
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_setWithIndex(DataType_t d, UInt32 index, string data);
+
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_getWithIndex(DataType_t d, UInt32 index, out string data);
+
+   {%- elif a.inner_type.find('sequence') >= 0 -%}
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_getLengthWithIndex(DataType_t d, UInt32 index, out UInt32 size);
+
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_setLengthWithIndex(DataType_t d, UInt32 index, UInt32 size);
+
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_setWithIndex(DataType_t d, UInt32 index, string data, UInt32 size);
+
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_getWithIndex(DataType_t d, UInt32 index, out string data, out UInt32 size);
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro member_utility(datatype) -%}
+  {%- for a in datatype.arguments -%}
+{% set context = datatype.full_path.replace('::', '_') + '_'+ a.name.replace('.','_') %}
+    {% if a.type.find('sequence') >= 0 %}
+      {{ sequence_setget(datatype, context, a) }}
+    {% endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{# FOR SEQUENCE END #}
+
 
 {%- macro parse_datatype(d) -%}
   {%- set dn = d.full_path.replace('::','_') %}
@@ -122,9 +207,7 @@
      [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
      private static extern Result_t {{ dn }}_get(DataType_t d, {{ tile_arguments(d, direction='out') }});
 
-   //  [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
-   //     private static extern Result_t _data_length(DataType_t d, out UInt32 max_size);
-
+  {{ member_utility(d) }}
 
   {% for m in d.members %}
     public {{ typecomp(m.type.name) }} {{ m.name }};
@@ -148,12 +231,80 @@
 
     public void up()
     {
+  {% for a in d.arguments -%}
+    {%- if a.type.find('sequence') >= 0 -%}
+      {%- if a.primitive_sequence == 'True' %}
+        {{ dn }}_{{ a.name.replace('.','_') }}_setLength(_d, (UInt32){{ a.name }}.Count);
+
+        {%- if a.inner_truetype == 'wchar' %}
+        Int16[] {{ a.name.replace('.', '_') }}_ = new Int16[{{a.name }}.Count];
+        for(int i = 0;i < {{ a.name }}.Count;i++) {
+          {{ a.name.replace('.','_') }}_[i] = (Int16)(UInt16){{ a.name }}[i];
+        }
+        {%- elif a.inner_truetype == 'boolean' %}
+        Byte[] {{ a.name.replace('.','_') }}_ = new Byte[{{ a.name }}.Count];
+        for(int i = 0;i < {{ a.name }}.Count;i++) {
+          {{ a.name.replace('.','_') }}_[i] = {{ a.name }}[i] ? (Byte)1 : (Byte)0;
+        }
+        {%- else -%}
+        {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = {{ a.name }}.ToArray();
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor %}
       {{ dn }}_set(_d, {{ tile_calling_arguments(d, direction='in') }});
     }
 
     public void down()
     {
+  {% for m in d.members -%}
+    {% if m.type.name == 'wchar' -%} Int16 {{ m.name }}_; 
+    {% elif m.type.name == 'boolean' -%} Byte {{ m.name }}_;
+    {% endif -%}
+  {%- endfor %}
+
+  {% for a in d.arguments -%}
+    {%- if a.type.find('sequence') >= 0 -%}
+      {%- if a.primitive_sequence == 'True' %}
+        UInt32 len_{{ a.name.replace('.','_') }};
+        {{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
+        {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = new {{ ctypecomp(a.inner_type) }}[len_{{ a.name.replace('.','_') }}];
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor %}
+
       {{ dn }}_get(_d, {{ tile_calling_arguments(d, direction='out') }});
+
+  {% for m in d.members -%}
+    {% if m.type.name == 'wchar' -%} {{ m.name }} = (Char)(UInt16) {{ m.name }}_; 
+    {% elif m.type.name == 'boolean' -%} {{ m.name }} = {{ m.name }}_ == 0 ? false : true;
+    {% endif -%}
+  {%- endfor %}
+
+
+  {% for a in d.arguments -%}
+    {%- if a.type.find('sequence') >= 0 -%}
+      {%- if a.primitive_sequence == 'True' %}
+        {%- if a.inner_truetype == 'wchar' -%}
+       {{ a.name }}.Clear();
+       for(int i = 0;i < {{ a.name.replace('.','_') }}_.Length;i++) {
+         {{ a.name }}.Add((Char)(UInt16){{ a.name.replace('.','_') }}_[i]);
+       }
+
+        {%- elif a.inner_truetype == 'boolean' -%}
+       {{ a.name }}.Clear();
+       for(int i = 0;i < {{ a.name.replace('.','_') }}_.Length;i++) {
+         {{ a.name }}.Add({{ a.name.replace('.','_') }}_[i] == 0 ? false : true);
+       }
+
+        {%- else -%}
+       {{ a.name }}.Clear();
+       {{ a.name }}.AddRange( {{ a.name.replace('.','_') }}_ );
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor %}
+
     }
 
     private DataType_t _d;
@@ -192,7 +343,7 @@
   {%- set m = mtree.module -%}
   {%- set ds = mtree.datatypes %}
 
-internal class {{ filename }}Base {
+internal class {{ filename }}Base : RTC.DataTypeBase {
   protected static const String datatype_dll = "{{ filename }}.dll";
 }
 
