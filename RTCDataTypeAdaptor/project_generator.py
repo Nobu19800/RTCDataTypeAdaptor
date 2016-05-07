@@ -141,62 +141,131 @@ def parse_struct_member(member, context):
         for m in member.members:
             ret = ret + parse_member(m, context=context)
         return ret
+
+
+def TypeInfo(name, datatype, enumtype='None', truetype=None, inner_type='None', inner_truetype='None', primitive_sequence=False):
+    return {'name': name,
+            'type': datatype,
+            'enumtype': enumtype,
+            'truetype': truetype if not truetype is None else datatype,
+            'inner_type': inner_type,
+            'inner_truetype': inner_truetype,
+            'primitive_sequence': primitive_sequence,
+            }
+    
+
+
+def parse_enum(enum_type, context):
+    return [TypeInfo(name=context, datatype=context, enumtype=enum_type.name, truetype=enum_type.name)]
+"""
+    return [{ 'type' : 'int32_t',
+              'name' : context,
+              'enumtype': enum_type.name, 
+              'truetype': enum_type.name, }]
+"""
             
-def parse_member(m, context='', verbose=False):
+def parse_typedef(m, context=''):
+    d = parse_member(m.type, context)
+    d[0]['typedef'] = m.name
+    #print d
+    #raw_input()
+    return d
+    
+
+def parse_sequence(m, m_type, name='', verbose=False):
+
+    if idlparser.is_primitive(m_type.inner_type.name, except_string=True):
+        typename = 'sequence<%s>' % (primitive_to_c(m_type.inner_type.name))
+        return [TypeInfo(name=name, datatype=typename, primitive_sequence='True', inner_type=primitive_to_c(m_type.inner_type.name),
+                         inner_truetype=m_type.inner_type.name)]
+        """
+        return [{ 'type' : typename,
+                  'name' : name,
+                  'primitive_sequence' : 'True',
+                  'inner_type' : primitive_to_c(m_type.inner_type.name),
+                  'inner_truetype' : m_type.inner_type.name,},
+                ]
+        """
+    elif m_type.inner_type.name == 'string':
+            #sys.stdout.write('Error : parsing type %s\n' % m_type)
+        return [TypeInfo(name=name, datatype='sequence<string>', primitive_sequence='False', inner_type='string')]
+        """
+        return [{ 'type' : 'sequence<string>',
+                  'primitive_sequence' : 'False',
+                  'name' : name,
+                  'inner_type' : 'string'}] 
+        """
+    elif m_type.inner_type.name == 'wstring':
+        return [TypeInfo(name=name, datatype='sequence<wstring>', primitive_sequence='False', inner_type='wstring')]
+        """
+        return [{ 'type' : 'sequence<wstring>',
+                  'primitive_sequence' : 'False',
+                  'name' : name,
+                  'inner_type' : 'wstring' }]
+        """
+    else:
+        return [TypeInfo(name=m.name, datatype=m_type.type.name, primitive_sequence='False', inner_type=m_type.inner_type.name)]
+        """
+        return [{ 'type' : m_type.name,
+                  'primitive_sequence' : 'False',
+                  'name' : m.name,
+                  'inner_type' : m_type.inner_type.name}]
+        """
+def parse_member(m, context='', verbose=False, comptypedef=False):
+
+    m_type = m.type
+    if m_type.is_typedef:
+        if not comptypedef: 
+            d = parse_member(m, context, verbose=verbose, comptypedef=True)
+            d[0]['typedef'] = m.type.name
+            return d
+        m_type = m.type.type
 
     global idlparser
-    if idlparser.is_primitive(m.type.name, except_string=True):
-        t = primitive_to_c(m.type.name)
+    if idlparser.is_primitive(m_type.name, except_string=True):
+        return [TypeInfo(name=context+'.'+m.name if len(context) > 0 else m.name, datatype=primitive_to_c(m_type.name))]
+        """
+        t = primitive_to_c(m_type.name)
         ret = { 'type' : t,
                 'name' : context + '.' +  m.name if len(context) > 0 else m.name, }
         return [ret]
-    elif m.type.name == 'string':
+        """
+    elif m_type.name == 'string':
+        return [TypeInfo(name=m.name, datatype=m_type.name, inner_type='char')]
+        """
         return [{ 'type' : 'string',
                   'name' : m.name,
                   'inner_type' : 'char' }]
-    elif m.type.name == 'wstring':
+        """
+    elif m_type.name == 'wstring':
+        return [TypeInfo(name=m.name, datatype=m_type.name, inner_type='uint16_t')]
+        """
         return [{ 'type' : 'wstring',
                   'name' : m.name,
                   'inner_type' : 'uint16_t' }]
-    elif m.type.is_struct:
+        """
+    elif m_type.is_struct:
         if len(context) > 0:
             name = context + '.' + m.name
         else:
             name = m.name
-        return parse_struct_member(m.type, context=name)
-    elif m.type.is_sequence:
-        if len(context) > 0:
-            name = context + '.' + m.name
-        else:
-            name = m.name
+        return parse_struct_member(m_type, context=name)
         
-        if idlparser.is_primitive(m.type.inner_type.name, except_string=True):
-            typename = 'sequence<%s>' % (primitive_to_c(m.type.inner_type.name))
-            return [{ 'type' : typename,
-                      'name' : name,
-                      'primitive_sequence' : 'True',
-                      'inner_type' : primitive_to_c(m.type.inner_type.name),
-                      'inner_truetype' : m.type.inner_type.name,},
-                    ]
-        elif m.type.inner_type.name == 'string':
-            #sys.stdout.write('Error : parsing type %s\n' % m.type)
-            return [{ 'type' : 'sequence<string>',
-                      'primitive_sequence' : 'False',
-                      'name' : name,
-                      'inner_type' : 'string'}]
-        elif m.type.inner_type.name == 'wstring':
-            sys.stdout.write('Error : parsing type %s\n' % m.type)
-            return [{ 'type' : 'sequence<wstring>',
-                      'primitive_sequence' : 'False',
-                      'name' : name,
-                      'inner_type' : 'wstring' }]
+    elif m_type.is_enum:
+        if len(context) > 0:
+            name = context + '.' + m.name
         else:
-            sys.stdout.write('Error : parsing type %s\n' % m.type)
-            return [{ 'type' : 'error',
-                      'name' : m.name }]
+            name = m.name
+        return parse_enum(m_type, context=name)
+    elif m_type.is_sequence:
+        if len(context) > 0:
+            name = context + '.' + m.name
+        else:
+            name = m.name
+        return parse_sequence(m, m_type, name=name)
             
     else:
-        sys.stdout.write('Error : parsing type %s\n' % m.type)
+        sys.stdout.write('Error : parsing type -%s\n' % m_type)
         return [{ 'type' : 'error',
                  'name' : m.name }]
 
