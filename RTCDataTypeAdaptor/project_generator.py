@@ -135,40 +135,23 @@ def primitive_to_c(idltype):
     return type_dict[idltype]
 
 
-def parse_struct_member(member, context):
-    ret = []
-    if member.is_struct:
-        for m in member.members:
-            ret = ret + parse_member(m, context=context)
-        return ret
 
 
-def TypeInfo(name, datatype, enumtype='None', truetype=None, inner_type='None', inner_truetype='None', primitive_sequence=False):
-    return {'name': name,
-            'type': datatype,
-            'enumtype': enumtype,
-            'truetype': truetype if not truetype is None else datatype,
-            'inner_type': inner_type,
-            'inner_truetype': inner_truetype,
-            'primitive_sequence': primitive_sequence,
-            }
+def TypeInfo(typobj, name, datatype, enumtype='None', truetype=None, inner_type='None', inner_truetype='None', primitive_sequence=False):
+    ret = {'name': name,
+           'type': datatype,
+           'enumtype': enumtype,
+           'truetype': truetype if not truetype is None else datatype,
+           'inner_type': inner_type,
+           'inner_truetype': inner_truetype if not inner_truetype is None else inner_type,
+           'primitive_sequence': primitive_sequence,
+           }
     
+    return ret;
 
-
-def parse_enum(enum_type, context):
-    return [TypeInfo(name=context, datatype=context, enumtype=enum_type.name, truetype=enum_type.name)]
-"""
-    return [{ 'type' : 'int32_t',
-              'name' : context,
-              'enumtype': enum_type.name, 
-              'truetype': enum_type.name, }]
-"""
-            
 def parse_typedef(m, context=''):
     d = parse_member(m.type, context)
     d[0]['typedef'] = m.name
-    #print d
-    #raw_input()
     return d
     
 
@@ -176,42 +159,21 @@ def parse_sequence(m, m_type, name='', verbose=False):
 
     if idlparser.is_primitive(m_type.inner_type.name, except_string=True):
         typename = 'sequence<%s>' % (primitive_to_c(m_type.inner_type.name))
-        return [TypeInfo(name=name, datatype=typename, primitive_sequence='True', inner_type=primitive_to_c(m_type.inner_type.name),
+        return [TypeInfo(m, name=name, datatype=typename, primitive_sequence='True', inner_type=primitive_to_c(m_type.inner_type.name),
                          inner_truetype=m_type.inner_type.name)]
-        """
-        return [{ 'type' : typename,
-                  'name' : name,
-                  'primitive_sequence' : 'True',
-                  'inner_type' : primitive_to_c(m_type.inner_type.name),
-                  'inner_truetype' : m_type.inner_type.name,},
-                ]
-        """
+
     elif m_type.inner_type.name == 'string':
             #sys.stdout.write('Error : parsing type %s\n' % m_type)
-        return [TypeInfo(name=name, datatype='sequence<string>', primitive_sequence='False', inner_type='string')]
-        """
-        return [{ 'type' : 'sequence<string>',
-                  'primitive_sequence' : 'False',
-                  'name' : name,
-                  'inner_type' : 'string'}] 
-        """
+        return [TypeInfo(m, name=name, datatype='sequence<string>', primitive_sequence='False', inner_type='string')]
+
     elif m_type.inner_type.name == 'wstring':
-        return [TypeInfo(name=name, datatype='sequence<wstring>', primitive_sequence='False', inner_type='wstring')]
-        """
-        return [{ 'type' : 'sequence<wstring>',
-                  'primitive_sequence' : 'False',
-                  'name' : name,
-                  'inner_type' : 'wstring' }]
-        """
+        return [TypeInfo(m, name=name, datatype='sequence<wstring>', primitive_sequence='False', inner_type='wstring')]
+
     else:
-        return [TypeInfo(name=m.name, datatype=m_type.type.name, primitive_sequence='False', inner_type=m_type.inner_type.name)]
-        """
-        return [{ 'type' : m_type.name,
-                  'primitive_sequence' : 'False',
-                  'name' : m.name,
-                  'inner_type' : m_type.inner_type.name}]
-        """
+        return [TypeInfo(m, name=m.name, datatype=m_type.type.name, primitive_sequence='False', inner_type=m_type.inner_type.name)]
+
 def parse_member(m, context='', verbose=False, comptypedef=False):
+    name = context + '.' + m.name if len(context) > 0 else m.name
 
     m_type = m.type
     if m_type.is_typedef:
@@ -223,62 +185,35 @@ def parse_member(m, context='', verbose=False, comptypedef=False):
 
     global idlparser
     if idlparser.is_primitive(m_type.name, except_string=True):
-        return [TypeInfo(name=context+'.'+m.name if len(context) > 0 else m.name, datatype=primitive_to_c(m_type.name))]
-        """
-        t = primitive_to_c(m_type.name)
-        ret = { 'type' : t,
-                'name' : context + '.' +  m.name if len(context) > 0 else m.name, }
-        return [ret]
-        """
+        return [TypeInfo(m, name=name, datatype=primitive_to_c(m_type.name))]
+
     elif m_type.name == 'string':
-        return [TypeInfo(name=m.name, datatype=m_type.name, inner_type='char')]
-        """
-        return [{ 'type' : 'string',
-                  'name' : m.name,
-                  'inner_type' : 'char' }]
-        """
+        return [TypeInfo(m, name=name, datatype=m_type.name, inner_type='char')]
+
     elif m_type.name == 'wstring':
-        return [TypeInfo(name=m.name, datatype=m_type.name, inner_type='uint16_t')]
-        """
-        return [{ 'type' : 'wstring',
-                  'name' : m.name,
-                  'inner_type' : 'uint16_t' }]
-        """
+        return [TypeInfo(m, name=name, datatype=m_type.name, inner_type='uint16_t')]
+
     elif m_type.is_struct:
-        if len(context) > 0:
-            name = context + '.' + m.name
-        else:
-            name = m.name
-        return parse_struct_member(m_type, context=name)
-        
+        ret = []
+        for m in m_type.members:
+            ret = ret + parse_member(m, context=name)
+        return ret
+
     elif m_type.is_enum:
-        if len(context) > 0:
-            name = context + '.' + m.name
-        else:
-            name = m.name
-        return parse_enum(m_type, context=name)
+        return [TypeInfo(m, name=name, datatype=name, enumtype=m_type.name, truetype=m_type.name)]
+
     elif m_type.is_sequence:
-        if len(context) > 0:
-            name = context + '.' + m.name
-        else:
-            name = m.name
         return parse_sequence(m, m_type, name=name)
             
     else:
         sys.stdout.write('Error : parsing type -%s\n' % m_type)
         return [{ 'type' : 'error',
                  'name' : m.name }]
-
     
 def parse_struct(s, filename):
     args = []
     for m_ in s.members:
-        if s.name == 'TimedLong':
-            print m_.type
-            print idlparser.is_primitive(m_.type.name)
         args = args + parse_member(m_)
-    if s.name == 'TimeLong':
-        print args
     return { 'name' : s.name,
              'full_path' : s.full_path,
              'arguments' : args,
