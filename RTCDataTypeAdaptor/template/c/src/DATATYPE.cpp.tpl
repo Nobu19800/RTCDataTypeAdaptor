@@ -130,7 +130,7 @@ Result_t {{ context }}_getWithIndex(DataType_t d, uint32_t index, char* data, ui
 #include <vector>
 #include <memory>
 #include "dataadapter_common.h"
-#include "port_adapter.h"
+#include "RTMAdapter-1.0/port_adapter.h"
 #include "{{ filename }}.h"
 {% for idl in idls %}
 #include "{{ idl.filename[:-4] }}.hh"

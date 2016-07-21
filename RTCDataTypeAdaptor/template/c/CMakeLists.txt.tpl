@@ -16,19 +16,16 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 # Get necessary dependency information
-find_package(OpenRTM)
-if(${OpenRTM_FOUND})
-  MESSAGE(STATUS "OpenRTM configuration Found")
-else(${OpenRTM_FOUND})
-  message(STATUS "Use cmake/Modules/FindOpenRTM.cmake in the project")
-  list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
-  find_package(OpenRTM REQUIRED)
-endif(${OpenRTM_FOUND})
+#find_package(OpenRTM)
+#if(${OpenRTM_FOUND})
+#  MESSAGE(STATUS "OpenRTM configuration Found")
+#else(${OpenRTM_FOUND})
+#  message(STATUS "Use cmake/Modules/FindOpenRTM.cmake in the project")
+#  list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+#  find_package(OpenRTM REQUIRED)
+#endif(${OpenRTM_FOUND})
 
-
-set(RTMADAPTER_INCLUDE_DIRS ${RTMADAPTER_ROOT}/include)
-set(RTMADAPTER_LIBRARY_DIRS ${RTMADAPTER_ROOT}/lib)
-set(RTMADAPTER_LIBRARIES RTMAdapter)
+find_package(RTMAdapter)
 
 add_subdirectory(idl)
 add_subdirectory(include)

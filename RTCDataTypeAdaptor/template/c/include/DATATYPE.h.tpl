@@ -43,7 +43,7 @@
 {%- endmacro -%}
 
 #pragma once
-#include "adapter_common.h"
+#include "RTMAdapter-1.0/adapter_common.h"
 #include "dataadapter_common.h"
 
 #ifdef __cplusplus
