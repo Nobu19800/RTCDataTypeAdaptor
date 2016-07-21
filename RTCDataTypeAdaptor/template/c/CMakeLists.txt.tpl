@@ -25,6 +25,11 @@ else(${OpenRTM_FOUND})
   find_package(OpenRTM REQUIRED)
 endif(${OpenRTM_FOUND})
 
+
+set(RTMADAPTER_INCLUDE_DIRS ${RTMADAPTER_ROOT}/include)
+set(RTMADAPTER_LIBRARY_DIRS ${RTMADAPTER_ROOT}/lib)
+set(RTMADAPTER_LIBRARIES RTMAdapter)
+
 add_subdirectory(idl)
 add_subdirectory(include)
 MAP_ADD_STR(headers  "include/" comp_hdrs)

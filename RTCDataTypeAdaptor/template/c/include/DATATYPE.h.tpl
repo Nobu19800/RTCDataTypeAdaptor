@@ -25,25 +25,26 @@
 {%- endmacro -%}
 
 {%- macro sequence_setget(datatype, a) -%}
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_getLength(DataType_t d, uint32_t* size);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_getLength(DataType_t d, uint32_t* size);
   
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_setLength(DataType_t d, uint32_t size);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_setLength(DataType_t d, uint32_t size);
   
   {%- if not a.primitive_sequence == 'True' -%}
     {%- if a.inner_type.find('sequence<char>') >= 0 %}
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_getLengthWithIndex(DataType_t d, uint32_t index, uint32_t* size);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_getLengthWithIndex(DataType_t d, uint32_t index, uint32_t* size);
   
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_setLengthWithIndex(DataType_t d, uint32_t index, uint32_t size);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_setLengthWithIndex(DataType_t d, uint32_t index, uint32_t size);
 
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_setWithIndex(DataType_t d, uint32_t index, char* data, uint32_t size);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_setWithIndex(DataType_t d, uint32_t index, char* data, uint32_t size);
 
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_getWithIndex(DataType_t d, uint32_t index, char* data, uint32_t* size);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_{{ a.name.replace('.','_') }}_getWithIndex(DataType_t d, uint32_t index, char* data, uint32_t* size);
     {%- endif -%}
   {%- endif -%}
 {%- endmacro -%}
 
 #pragma once
 #include "adapter_common.h"
+#include "dataadapter_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,21 +52,21 @@ extern "C" {
 
 {%- for datatype in datatypes %}
 
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_registerDataType(void* portBuffer);
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_registerDataType(void* portBuffer);
 
-  ADAPTER_API DataType_t {{ datatype.full_path.replace('::', '_') }}_create();
+  DATAADAPTER_API DataType_t {{ datatype.full_path.replace('::', '_') }}_create();
 {% for a in datatype.arguments %}{% if a.type.find('sequence') >= 0 %}
   {{ sequence_setget(datatype, a) }}
 {% endif %}{% endfor %}
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_set(DataType_t d, {{ tile_arguments(datatype, direction='in') }});
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_set(DataType_t d, {{ tile_arguments(datatype, direction='in') }});
   
-  ADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_get(DataType_t d, {{ tile_arguments(datatype, direction='out') }});
+  DATAADAPTER_API Result_t {{ datatype.full_path.replace('::', '_') }}_get(DataType_t d, {{ tile_arguments(datatype, direction='out') }});
 
-  ADAPTER_API Port_t InPort_{{ datatype.full_path.replace('::', '_') }}_create(char* name, DataType_t d);
+  DATAADAPTER_API Port_t InPort_{{ datatype.full_path.replace('::', '_') }}_create(char* name, DataType_t d);
 
-  ADAPTER_API Result_t InPort_{{ datatype.full_path.replace('::', '_') }}_isNew(Port_t port, int32_t* flag);
+  DATAADAPTER_API Result_t InPort_{{ datatype.full_path.replace('::', '_') }}_isNew(Port_t port, int32_t* flag);
 
-  ADAPTER_API Port_t OutPort_{{ datatype.full_path.replace('::', '_') }}_create(char* name, DataType_t d);
+  DATAADAPTER_API Port_t OutPort_{{ datatype.full_path.replace('::', '_') }}_create(char* name, DataType_t d);
 
 {%- endfor %}
 
