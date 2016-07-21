@@ -98,9 +98,9 @@
       {%- endif -%}
     {%- elif m.type.name.find('sequence') >= 0 -%}
       {%- if direction=='in' -%}
-ref {{ a.name }}_, (UInt32){{ a.name }}.Count
+ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
       {%- else -%}
-out {{ a.name }}_, out len_{{ a.name.replace('.','_') }}
+out {{ a.name.replace('.','_') }}_, out len_{{ a.name.replace('.','_') }}
       {%- endif -%}
     {%- else -%}
       {%- if direction=='out' -%} 
@@ -115,7 +115,7 @@ out {{ a.name }}_, out len_{{ a.name.replace('.','_') }}
 out {{ a.name }}
     {%- else -%}
       {%- if a.type.find('sequence') >= 0 -%}
-ref {{ a.name }}_ 
+ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
       {%- else -%}
 {{ a.name }}
       {%- endif -%}
@@ -184,8 +184,10 @@ ref {{ a.name }}_
 {%- macro parse_datatype(d) -%}
   {%- set dn = d.full_path.replace('::','_') %}
 
-  public class {{ d.name }} : {{ filename }}Base
+  public class {{ d.name }} : RTC.DataTypeBase
   {
+     protected const String datatype_dll = {{ filename }}Base.datatype_dll;
+
      [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
      private static extern Result_t {{ dn }}_registerDataType(IntPtr portBuffer);
 
@@ -223,7 +225,7 @@ ref {{ a.name }}_
 
     static void register()
     {
-      if ({{ dn }}_registerDataType(PortBase.getBuffer()) < 0)
+      if ({{ dn }}_registerDataType(RTC.PortBase.getBuffer()) < 0)
       {
          // Failed.
       }
@@ -269,7 +271,7 @@ ref {{ a.name }}_
         UInt32 len_{{ a.name.replace('.','_') }};
         {{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
         {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = new {{ ctypecomp(a.inner_type) }}[len_{{ a.name.replace('.','_') }}];
-      {%- endif -%}
+      {% endif -%}
     {%- endif -%}
   {%- endfor %}
 
@@ -343,8 +345,8 @@ ref {{ a.name }}_
   {%- set m = mtree.module -%}
   {%- set ds = mtree.datatypes %}
 
-internal class {{ filename }}Base : RTC.DataTypeBase {
-  protected static const String datatype_dll = "{{ filename }}.dll";
+internal class {{ filename }}Base {
+  public static String datatype_dll = "{{ filename }}.dll";
 }
 
 namespace {{ m.name }} {
