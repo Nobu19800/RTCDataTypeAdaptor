@@ -1,4 +1,4 @@
-set(headers {{ filename }}.h )
+set(headers {{ filename }}.h dataadapter_common.h)
 
 
 macro(MAP_ADD_STR _list _str _output)
@@ -9,5 +9,8 @@ macro(MAP_ADD_STR _list _str _output)
 endmacro(MAP_ADD_STR)
 
 
+install(FILES ${headers} DESTINATION ${INC_INSTALL_DIR})
+
 MAP_ADD_STR(hdrs "${PROJECT_NAME}/" headers)
 set(headers ${headers} PARENT_SCOPE)
+
