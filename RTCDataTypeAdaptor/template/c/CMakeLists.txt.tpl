@@ -53,6 +53,7 @@ endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 find_package(RTMAdapter)
 
 add_subdirectory(idl)
+add_subdirectory(cmake)
 add_subdirectory(include)
 MAP_ADD_STR(headers  "include/" comp_hdrs)
 add_subdirectory(src)
