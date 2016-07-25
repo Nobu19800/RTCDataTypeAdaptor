@@ -98,7 +98,13 @@
       {%- endif -%}
     {%- elif m.type.name.find('sequence') >= 0 -%}
       {%- if direction=='in' -%}
+        {%- if m.type.name == 'sequence<string>' -%}
+
+        {%- elif m.type.name == 'sequence<wstring>' -%}
+
+        {%- else -%}
 ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
+        {%- endif -%}
       {%- else -%}
 out {{ a.name.replace('.','_') }}_, out len_{{ a.name.replace('.','_') }}
       {%- endif -%}
@@ -189,9 +195,6 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
      protected const String datatype_dll = {{ filename }}Base.datatype_dll;
 
      [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
-     private static extern Result_t {{ dn }}_registerDataType(IntPtr portBuffer);
-
-     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
      private static extern DataType_t {{ dn }}_create();
 
      [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -223,14 +226,6 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
     }
 
 
-    static void register()
-    {
-      if ({{ dn }}_registerDataType(RTC.PortBase.getBuffer()) < 0)
-      {
-         // Failed.
-      }
-    }
-
     public void up()
     {
   {% for a in d.arguments -%}
@@ -251,10 +246,19 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
         {%- else -%}
         {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = {{ a.name }}.ToArray();
         {%- endif -%}
+      {%- elif a.type == 'sequence<string>' %}
+
+      {%- elif a.type == 'sequence<wstring>' %}
+  
       {%- endif -%}
     {%- endif -%}
   {%- endfor %}
+  {% if d.name == 'TimedStringSeq' %}
+
+  {% elif d.name == 'TimedWStringSeq' %}
+  {% else %}
       {{ dn }}_set(_d, {{ tile_calling_arguments(d, direction='in') }});
+  {% endif %}
     }
 
     public void down()
@@ -271,12 +275,20 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
         UInt32 len_{{ a.name.replace('.','_') }};
         {{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
         {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = new {{ ctypecomp(a.inner_type) }}[len_{{ a.name.replace('.','_') }}];
+      {%- elif a.type == 'sequence<string>' %}
+        //UInt32 len_{{ a.name.replace('.','_') }};
+        //{{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
       {% endif -%}
     {%- endif -%}
   {%- endfor %}
 
-      {{ dn }}_get(_d, {{ tile_calling_arguments(d, direction='out') }});
+  
+  {% if d.name == 'TimedStringSeq' %}
 
+  {% elif d.name == 'TimedWStringSeq' %}
+  {% else %}
+      {{ dn }}_get(_d, {{ tile_calling_arguments(d, direction='out') }});
+  {% endif %}
   {% for m in d.members -%}
     {% if m.type.name == 'wchar' -%} {{ m.name }} = (Char)(UInt16) {{ m.name }}_; 
     {% elif m.type.name == 'boolean' -%} {{ m.name }} = {{ m.name }}_ == 0 ? false : true;
@@ -313,14 +325,12 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
 
     public Port_t createOutPort(string name)
     {
-        register();
         _d = {{ dn }}_create();
         return OutPort_{{ dn }}_create(name, _d);
      }
 
      public Port_t createInPort(string name)
      {
-        register();
         _d = {{ dn }}_create();
         return InPort_{{ dn }}_create(name, _d);
      }
@@ -346,7 +356,7 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
   {%- set ds = mtree.datatypes %}
 
 internal class {{ filename }}Base {
-  public static String datatype_dll = "{{ filename }}.dll";
+  public const String datatype_dll = "{{ filename }}.dll";
 }
 
 namespace {{ m.name }} {

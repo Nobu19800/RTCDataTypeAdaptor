@@ -66,6 +66,8 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
                 continue
 
             project_dir = os.path.join(backend_dir, idl_identifier, root)
+            if project_dir.find("DATATYPE") >= 0:
+                project_dir = project_dir.replace("DATATYPE", idl_identifier)
             if not os.path.isdir(project_dir):
                 os.mkdir(project_dir)
             filename = f[:-4]
