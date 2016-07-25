@@ -36,7 +36,7 @@ for dirpath, dirnames, filenames in os.walk(package_dir):
 
 
 setup(name='RTCDataTypeAdaptor',
-      version='0.0.1',
+      version='0.1.1',
       url = 'http://www.sugarsweetrobotics.com/',
       author = 'ysuga',
       author_email = 'ysuga@ysuga.net',
