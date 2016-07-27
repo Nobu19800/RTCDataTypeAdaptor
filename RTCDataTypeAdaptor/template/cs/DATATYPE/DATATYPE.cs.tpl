@@ -63,11 +63,11 @@
     {%- endif -%}
   {%- elif a.type == 'string' -%}
       {%- if loop.index0 != 0 -%}, {% endif -%}	
-  
-    {%- if direction == 'out' -%}out {% endif %} string {{ a.name.replace('.','_') }}
+{# may 'out' needs here? #}
+  [MarshalAs(UnmanagedType.LPArray)] byte[] {{ a.name.replace('.','_') }}
   {%- elif a.type == 'wstring' -%}
       {%- if loop.index0 != 0 -%}, {% endif -%}	
-    {%- if direction == 'out' -%}out {% endif %} string {{ a.name.replace('.','_') }}
+  [MarshalAs(UnmanagedType.LPArray)] byte[] {{ a.name.replace('.','_') }}
   {%- else -%}
     {%- if loop.index0 != 0 -%}, {% endif -%}	
     {%- if direction == 'out' -%} out {% else %} {% endif -%}
@@ -108,6 +108,8 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
       {%- else -%}
 out {{ a.name.replace('.','_') }}_, out len_{{ a.name.replace('.','_') }}
       {%- endif -%}
+    {%- elif m.type.name == 'string' or m.type.name == 'wstring' -%}
+{{ a.name.replace('.','_') }}_buffer      
     {%- else -%}
       {%- if direction=='out' -%} 
  out {{ a.name }}
@@ -177,15 +179,22 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
 
 {%- macro member_utility(datatype) -%}
   {%- for a in datatype.arguments -%}
-{% set context = datatype.full_path.replace('::', '_') + '_'+ a.name.replace('.','_') %}
-    {% if a.type.find('sequence') >= 0 %}
+{%- set context = datatype.full_path.replace('::', '_') + '_'+ a.name.replace('.','_') -%}
+    {%- if a.type.find('sequence') >= 0 %}
       {{ sequence_setget(datatype, context, a) }}
+    {%- elif a.type == 'string' or a.type == 'wstring' %}
+      {{ string_setget(datatype, context, a) }}
     {% endif -%}
   {%- endfor -%}
 {%- endmacro -%}
 
 {# FOR SEQUENCE END #}
 
+{# FOR STRING #}
+{%- macro string_setget(datatype, context, a) %}
+     [DllImport(datatype_dll, CallingConvention = CallingConvention.Cdecl)]
+     private static extern Result_t {{ context }}_getLength(DataType_t d, out UInt32 size);
+{%- endmacro -%}
 
 {%- macro parse_datatype(d) -%}
   {%- set dn = d.full_path.replace('::','_') %}
@@ -228,17 +237,16 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
 
     public void up()
     {
-  {% for a in d.arguments -%}
-    {%- if a.type.find('sequence') >= 0 -%}
+{% for a in d.arguments -%}
+  {%- if a.type.find('sequence') >= 0 -%}
       {%- if a.primitive_sequence == 'True' %}
         {{ dn }}_{{ a.name.replace('.','_') }}_setLength(_d, (UInt32){{ a.name }}.Count);
-
-        {%- if a.inner_truetype == 'wchar' %}
+        {%- if a.inner_truetype == 'wchar' -%}
         Int16[] {{ a.name.replace('.', '_') }}_ = new Int16[{{a.name }}.Count];
         for(int i = 0;i < {{ a.name }}.Count;i++) {
           {{ a.name.replace('.','_') }}_[i] = (Int16)(UInt16){{ a.name }}[i];
         }
-        {%- elif a.inner_truetype == 'boolean' %}
+        {%- elif a.inner_truetype == 'boolean' -%}
         Byte[] {{ a.name.replace('.','_') }}_ = new Byte[{{ a.name }}.Count];
         for(int i = 0;i < {{ a.name }}.Count;i++) {
           {{ a.name.replace('.','_') }}_[i] = {{ a.name }}[i] ? (Byte)1 : (Byte)0;
@@ -246,59 +254,76 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
         {%- else -%}
         {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = {{ a.name }}.ToArray();
         {%- endif -%}
-      {%- elif a.type == 'sequence<string>' %}
+      {%- elif a.type == 'sequence<string>' -%}
 
-      {%- elif a.type == 'sequence<wstring>' %}
+      {%- elif a.type == 'sequence<wstring>' -%}
   
       {%- endif -%}
-    {%- endif -%}
-  {%- endfor %}
-  {% if d.name == 'TimedStringSeq' %}
+    {%- elif a.type == 'string' or a.type == 'wstring' -%} 
+       {%- set mem_name = dn + '_' + a.name.replace('.','_') -%}
+       UInt32 {{ mem_name }}_length;
 
-  {% elif d.name == 'TimedWStringSeq' %}
-  {% else %}
+       {{ mem_name }}_getLength(_d, out {{ mem_name }}_length);
+       {%- if a.type == 'string' %}
+       byte[] {{ a.name.replace('.','_') }}_buffer = Encoding.ASCII.GetBytes({{ a.name.replace('.','_') }});
+       {% else -%}
+       byte[] {{ a.name.replace('.','_') }}_buffer = Encoding.UTF8.GetBytes({{ a.name.replace('.','_') }});
+       {%- endif -%}
+    {% endif -%} {# if a type find sequence #}
+  {%- endfor %}
+  {%- if d.name == 'TimedStringSeq' -%}
+
+  {%- elif d.name == 'TimedWStringSeq' -%}
+  {%- else -%}
       {{ dn }}_set(_d, {{ tile_calling_arguments(d, direction='in') }});
-  {% endif %}
-    }
+  {%- endif -%}
+    } // up()
 
     public void down()
     {
-  {% for m in d.members -%}
-    {% if m.type.name == 'wchar' -%} Int16 {{ m.name }}_; 
-    {% elif m.type.name == 'boolean' -%} Byte {{ m.name }}_;
-    {% endif -%}
-  {%- endfor %}
+  {%- for m in d.members -%}
+    {%- if m.type.name == 'wchar' -%} Int16 {{ m.name }}_; 
+    {%- elif m.type.name == 'boolean' -%} Byte {{ m.name }}_;
+    {%- endif -%}
+  {%- endfor -%}
 
-  {% for a in d.arguments -%}
+  {%- for a in d.arguments -%}
     {%- if a.type.find('sequence') >= 0 -%}
       {%- if a.primitive_sequence == 'True' %}
         UInt32 len_{{ a.name.replace('.','_') }};
         {{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
+
         {{ ctypecomp(a.inner_type) }}[] {{ a.name.replace('.', '_') }}_ = new {{ ctypecomp(a.inner_type) }}[len_{{ a.name.replace('.','_') }}];
-      {%- elif a.type == 'sequence<string>' %}
+      {%- elif a.type == 'sequence<string>' -%}
         //UInt32 len_{{ a.name.replace('.','_') }};
         //{{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
-      {% endif -%}
+      {%- elif a.type == 'sequence<wstring>' -%}
+
+      {%- endif -%}
+    {%- elif a.type == 'string' or a.type == 'wstring' -%}
+     {%- set mem_name = dn + '_' + a.name.replace('.','_') -%}
+     UInt32 {{ mem_name }}_length;
+     {{ mem_name }}_getLength(_d, out {{ mem_name }}_length);
+     byte[] {{ a.name.replace('.','_') }}_buffer = new byte[{{ mem_name }}_length];	
     {%- endif -%}
-  {%- endfor %}
+  {%- endfor -%}
 
   
-  {% if d.name == 'TimedStringSeq' %}
+  {%- if d.name == 'TimedStringSeq' -%}
 
-  {% elif d.name == 'TimedWStringSeq' %}
-  {% else %}
+  {%- elif d.name == 'TimedWStringSeq' -%}
+  {%- else -%}
       {{ dn }}_get(_d, {{ tile_calling_arguments(d, direction='out') }});
-  {% endif %}
-  {% for m in d.members -%}
-    {% if m.type.name == 'wchar' -%} {{ m.name }} = (Char)(UInt16) {{ m.name }}_; 
-    {% elif m.type.name == 'boolean' -%} {{ m.name }} = {{ m.name }}_ == 0 ? false : true;
-    {% endif -%}
-  {%- endfor %}
+  {%- endif -%}
+  {%- for m in d.members -%}
+    {%- if m.type.name == 'wchar' -%} {{ m.name }} = (Char)(UInt16) {{ m.name }}_; 
+    {%- elif m.type.name == 'boolean' -%} {{ m.name }} = {{ m.name }}_ == 0 ? false : true;
+    {%- endif -%}
+  {%- endfor -%}
 
-
-  {% for a in d.arguments -%}
+  {%- for a in d.arguments -%}
     {%- if a.type.find('sequence') >= 0 -%}
-      {%- if a.primitive_sequence == 'True' %}
+      {%- if a.primitive_sequence == 'True' -%}
         {%- if a.inner_truetype == 'wchar' -%}
        {{ a.name }}.Clear();
        for(int i = 0;i < {{ a.name.replace('.','_') }}_.Length;i++) {
@@ -316,9 +341,12 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
        {{ a.name }}.AddRange( {{ a.name.replace('.','_') }}_ );
         {%- endif -%}
       {%- endif -%}
+    {%- elif a.type == 'string' -%}
+      {{ a.name.replace('.','_') }} = {{ a.name.replace('.','_') }}_buffer.ToString();
+    {%- elif a.type == 'wstring' -%}
+      {{ a.name.replace('.','_') }} = Encoding.UTF8.GetString({{ a.name.replace('.','_') }}_buffer);
     {%- endif -%}
-  {%- endfor %}
-
+  {%- endfor -%}
     }
 
     private DataType_t _d;
