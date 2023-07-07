@@ -13,7 +13,7 @@
   {%- elif t == 'string' -%} String
   {%- elif t == 'wstring' -%} String
   {%- elif t.startswith('sequence') -%}
-    {%- set dn = t[9:-1] -%}
+    {%- set dn = t[11:-2] -%}
     List<{{ typecomp(dn) }}>
   {%- else -%} {{ t }}
   {%- endif -%}
@@ -46,7 +46,7 @@
   {%- elif t == 'string' -%} ""
   {%- elif t == 'wstring' -%} ""
   {%- elif t.startswith('sequence') -%}
-    {%- set dn = t[9:-1] -%}
+    {%- set dn = t[11:-2] -%}
     new List<{{ typecomp(dn) }}>()
   {%- else -%} new {{ t }}()
   {%- endif -%}
@@ -297,7 +297,7 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
       {%- elif a.type == 'sequence<string>' -%}
         //UInt32 len_{{ a.name.replace('.','_') }};
         //{{ dn }}_{{ a.name.replace('.','_') }}_getLength(_d, out len_{{ a.name.replace('.','_') }});
-      {%- elif a.type == 'sequence<wstring>' -%}
+      {%elif a.type == 'sequence<wstring>' -%}
 
       {%- endif -%}
     {%- elif a.type == 'string' or a.type == 'wstring' -%}

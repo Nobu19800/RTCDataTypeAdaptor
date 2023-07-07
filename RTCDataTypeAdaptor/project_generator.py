@@ -50,7 +50,7 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
     template_backend_dir = os.path.join(__path__[0], 'template', language)
     if verbose: print('- template_backend_dir = %s' % template_backend_dir)
     if not os.path.isdir(template_backend_dir):
-        if verbose: print 'Backend (%s) is not available' % language
+        if verbose: print('Backend (%s) is not available' % language)
         raise InvalidBackendException()
     os.chdir(template_backend_dir)
 
@@ -186,10 +186,9 @@ def parse_member(m, context='', verbose=False, comptypedef=False):
         m_type = m.type.type
 
     global idlparser
-    if idlparser.is_primitive(m_type.name, except_string=True):
-        return [TypeInfo(m, name=name, datatype=primitive_to_c(m_type.name))]
+    
 
-    elif m_type.name == 'string':
+    if m_type.name == 'string':
         return [TypeInfo(m, name=name, datatype=m_type.name, inner_type='char')]
 
     elif m_type.name == 'wstring':
@@ -206,6 +205,9 @@ def parse_member(m, context='', verbose=False, comptypedef=False):
 
     elif m_type.is_sequence:
         return parse_sequence(m, m_type, name=name)
+    
+    elif idlparser.is_primitive(m_type.name, except_string=True):
+        return [TypeInfo(m, name=name, datatype=primitive_to_c(m_type.name))]
             
     else:
         sys.stdout.write('Error : parsing type -%s\n' % m_type)
