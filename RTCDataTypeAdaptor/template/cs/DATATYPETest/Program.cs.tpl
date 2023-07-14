@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using OpenRTM_aist;
 using RTC;
 
-namespace BasicDataTypeCSTest
+namespace {{ filename }}CSTest
 {
     class Program
     {

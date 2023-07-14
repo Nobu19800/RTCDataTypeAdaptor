@@ -105,6 +105,7 @@ def parse_global_module(gm, language, idl_identifier, idl_path, description='', 
                         output_txt = file_tpl.render({'filename': idl_identifier,
                                                       'project': project,
                                                       'idls' : idls,
+                                                      'include_idls' : include_idls,
                                                       'datatypes' : datatypes,
                                                       'module_tree' : module_tree,
                                                       })
@@ -261,7 +262,20 @@ def parse_module_tree(tree, m, filename):
         return parse_struct(s, filename=filename)
 
     tree['module'] = m
-    tree['datatypes'] = m.for_each_struct(parse_struct_local, filter=filter_func)
+    datatypes = m.for_each_struct(parse_struct_local, filter=filter_func)
+    tree['datatypes'] = []
+    tree['datadefs'] = []
+
+    def sort_datatypes(types, defs, datatype):
+        for argument in datatype["arguments"]:
+            if argument["name"] == "tm.sec" or argument["name"] == "tm.nsec":
+                types.append(datatype)
+                return
+        defs.append(datatype)
+
+    for datatype in datatypes:
+        sort_datatypes(tree['datatypes'], tree['datadefs'], datatype)
+
     tree['children'] = []
     
     for m_ in m.modules:

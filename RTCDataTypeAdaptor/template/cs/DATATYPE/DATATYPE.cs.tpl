@@ -378,13 +378,38 @@ ref {{ a.name.replace('.','_') }}_, (UInt32){{ a.name }}.Count
 
 {%- endmacro -%}
 
+{%- macro parse_datadefs(d) -%}
+  {%- set dn = d.full_path.replace('::','_') %}
+
+  public class {{ d.name }}
+  {
+  {{ member_utility(d) }}
+
+  {% for m in d.members %}
+    public {{ typecomp(m.type.name) }} {{ m.name }};
+  {% endfor %}
+
+    /// Default Constructor
+    public {{ d.name }}() {
+  {%- for m in d.members %}
+      {{ m.name }} = {{ default( m.type.name ) }};
+  {%- endfor %}
+    }
+  }
+{%- endmacro -%}
+
 
 {%- macro parse_module(mtree) -%}
   {%- set m = mtree.module -%}
   {%- set ds = mtree.datatypes %}
+  {%- set df = mtree.datadefs %}
 
 internal class {{ filename }}Base {
+#if DEBUG
+  public const String datatype_dll = "{{ filename }}d.dll";
+#else
   public const String datatype_dll = "{{ filename }}.dll";
+#endif
 }
 
 namespace {{ m.name }} {
@@ -393,6 +418,12 @@ namespace {{ m.name }} {
   {{ parse_datatype(d) }}
 
   {%- endfor %}
+
+  {% for d in df %}
+  {{ parse_datadefs(d) }}
+
+  {%- endfor %}
+
 
 }
  
