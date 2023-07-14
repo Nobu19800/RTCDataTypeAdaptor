@@ -239,7 +239,14 @@ def parse_module(m, filename):
         def parse_struct_local(s):
             return parse_struct(s, filename=filename)
         datatypes = datatypes + m_.for_each_struct(parse_struct_local, filter=filter_func)
-    return datatypes
+    rettypes = []
+    for datatype in datatypes:
+        for argument in datatype["arguments"]:
+            if argument["name"] == "tm.sec" or argument["name"] == "tm.nsec":
+                rettypes.append(datatype)
+                break
+
+    return rettypes
 
 
 def parse_module_tree(tree, m, filename):
